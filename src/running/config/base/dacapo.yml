@@ -51,6 +51,18 @@ suites:
     timing_iteration: 3
     timeout: 120
     minheap_values: {}
+  dacapo-android:
+    type: DaCapo
+    release: "android"
+    path: /home/kunals/git/android/benchmarks/android-dacapobach
+    minheap: art-CC
+    minheap_values:
+      art-CC:
+        lusearch: 10
+        pmd: 30
+        xalan: 14
+    timing_iteration: 5
+    timeout: 300
   dacapochopin-29a657f:
     type: DaCapo
     release: evaluation

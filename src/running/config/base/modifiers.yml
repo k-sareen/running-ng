@@ -49,3 +49,16 @@ modifiers:
   cms:
     type: JVMArg
     val: "-XX:-UseCompressedOops -XX:+UseConcMarkSweepGC -XX:TLABSize=32K -XX:-ResizeTLAB"
+  ## ART
+  art_gc:
+    type: JVMArg
+    val: "-Xgc:{0}"
+  art_32:
+    type: ARTArg
+    val: "--32"
+  art_64:
+    type: ARTArg
+    val: "--64"
+  no_aot_compile:
+    type: ARTArg
+    val: "--no-compile"

@@ -89,6 +89,16 @@ class JVMClasspathPrepend(Modifier):
 
 
 @register(Modifier)
+class ARTArg(Modifier):
+    def __init__(self, value_opts=None, **kwargs):
+        super().__init__(value_opts, **kwargs)
+        self.val = split_quoted(self._kwargs["val"])
+
+    def __str__(self) -> str:
+        return "{} ARTArg {}".format(super().__str__(), self.val)
+
+
+@register(Modifier)
 class EnvVar(Modifier):
     def __init__(self, value_opts=None, **kwargs):
         super().__init__(value_opts, **kwargs)

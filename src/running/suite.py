@@ -1,6 +1,6 @@
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
-from running.benchmark import JavaBenchmark, BinaryBenchmark, Benchmark, JavaScriptBenchmark
+from running.benchmark import AndroidBenchmark, JavaBenchmark, BinaryBenchmark, Benchmark, JavaScriptBenchmark
 import logging
 from running.util import register, split_quoted
 
@@ -103,7 +103,7 @@ class DaCapo(JavaBenchmarkSuite):
         super().__init__(**kwargs)
         self.release: str
         self.release = kwargs["release"]
-        if self.release not in ["2006", "9.12", "evaluation"]:
+        if self.release not in ["2006", "9.12", "evaluation", "android"]:
             raise ValueError(
                 "DaCapo release {} not recongized".format(self.release))
         self.path: Path
@@ -157,7 +157,7 @@ class DaCapo(JavaBenchmarkSuite):
             timing_iteration = v
         return timing_iteration
 
-    def get_benchmark(self, bm_spec: Union[str, Dict[str, Any]]) -> 'JavaBenchmark':
+    def get_benchmark(self, bm_spec: Union[str, Dict[str, Any]]) -> Union['JavaBenchmark', 'AndroidBenchmark']:
         timing_iteration = self.timing_iteration
         timeout = self.timeout
         size = self.size
@@ -168,7 +168,7 @@ class DaCapo(JavaBenchmarkSuite):
             assert type(bm_spec) is dict
             if "bm_name" not in bm_spec or "name" not in bm_spec:
                 raise KeyError(
-                    "When a dictionary is used to speicfy a benchmark, you need to provide both `name` and `bm_name`")
+                    "When a dictionary is used to specify a benchmark, you need to provide both `name` and `bm_name`")
             bm_name = bm_spec["bm_name"]
             name = bm_spec["name"]
             if "timing_iteration" in bm_spec:
@@ -181,10 +181,18 @@ class DaCapo(JavaBenchmarkSuite):
 
         if self.callback:
             cp = [str(self.path)]
-            program_args = ["Harness", "-c", self.callback]
+            if self.release != "android":
+                program_args = ["Harness", "-c", self.callback]
+            else:
+                cp.append(str(self.path) + "/dacapo/classes.dex")
+                program_args = ["etalon.purdue.edu.dacapo.Harness", "-c", self.callback]
         else:
-            cp = []
-            program_args = ["-jar", str(self.path)]
+            if self.release != "android":
+                cp = []
+                program_args = ["-jar", str(self.path)]
+            else:
+                cp = ["dacapo/classes.dex"]
+                program_args = ["etalon.purdue.edu.dacapo.Harness"]
         # Timing iteration
         if type(timing_iteration) is int:
             program_args.extend(["-n", str(timing_iteration)])
@@ -198,19 +206,33 @@ class DaCapo(JavaBenchmarkSuite):
         program_args.extend(["-s", size])
         # Name of the benchmark
         program_args.append(bm_name)
-        return JavaBenchmark(
-            jvm_args=[],
-            program_args=program_args,
-            cp=cp,
-            wrapper=self.get_wrapper(bm_name),
-            companion=self.get_companion(bm_name),
-            suite_name=self.name,
-            name=name,
-            timeout=timeout
-        )
+        if self.release != "android":
+            return JavaBenchmark(
+                jvm_args=[],
+                program_args=program_args,
+                cp=cp,
+                wrapper=self.get_wrapper(bm_name),
+                companion=self.get_companion(bm_name),
+                suite_name=self.name,
+                name=name,
+                timeout=timeout
+            )
+        else:
+            return AndroidBenchmark(
+                art_args=[],
+                jvm_args=[],
+                program_args=program_args,
+                cp=cp,
+                wrapper=self.get_wrapper(bm_name),
+                companion=self.get_companion(bm_name),
+                suite_name=self.name,
+                name=name,
+                timeout=timeout
+            )
+
 
     def get_minheap(self, bm: Benchmark) -> int:
-        assert isinstance(bm, JavaBenchmark)
+        assert isinstance(bm, JavaBenchmark) or isinstance(bm, AndroidBenchmark)
         name = bm.name
         if not self.minheap:
             logging.warning(

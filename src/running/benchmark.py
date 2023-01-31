@@ -224,6 +224,51 @@ class JavaBenchmark(Benchmark):
         return cmd
 
 
+class AndroidBenchmark(Benchmark):
+    def __init__(self, art_args: List[str], jvm_args: List[str], program_args: List[str], cp: List[str], **kwargs):
+        super().__init__(**kwargs)
+        self.art_args = art_args
+        self.jvm_args = jvm_args
+        self.program_args = program_args
+        self.cp = cp
+
+    def get_classpath_args(self) -> List[str]:
+        return ["-cp", ":".join(self.cp)] if self.cp else []
+
+    def __str__(self) -> str:
+        return self.to_string(DummyRuntime("java"))
+
+    def attach_modifiers(self, modifiers: List[Modifier]) -> 'AndroidBenchmark':
+        jb = super().attach_modifiers(modifiers)
+        for m in modifiers:
+            if self.suite_name in m.excludes:
+                if self.name in m.excludes[self.suite_name]:
+                    continue
+            if type(m) == ARTArg:
+                jb.art_args.extend(m.val)
+            elif type(m) == JVMArg:
+                jb.jvm_args.extend(m.val)
+            elif type(m) == ProgramArg:
+                jb.program_args.extend(m.val)
+            elif isinstance(m, JVMClasspathAppend):
+                jb.cp.extend(m.val)
+            elif type(m) == JVMClasspathPrepend:
+                jb.cp = m.val + jb.cp
+            elif type(m) == JSArg:
+                logging.warning(
+                    "JSArg not respected by AndroidBenchmark")
+        return jb
+
+    def get_full_args(self, runtime: Runtime) -> List[Union[str, Path]]:
+        cmd = super().get_full_args(runtime)
+        cmd.append(runtime.get_executable())
+        cmd.extend(self.art_args)
+        cmd.extend(self.jvm_args)
+        cmd.extend(self.get_classpath_args())
+        cmd.extend(self.program_args)
+        return cmd
+
+
 class JavaScriptBenchmark(Benchmark):
     def __init__(self, js_args: List[str], program: str, program_args: List[str], **kwargs):
         super().__init__(**kwargs)

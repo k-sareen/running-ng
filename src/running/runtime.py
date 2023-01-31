@@ -122,6 +122,27 @@ class JikesRVM(JVM):
         return "{} JikesRVM {}".format(super().__str__(), self.home)
 
 
+@register(Runtime)
+class ART(JVM):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.home: Path
+        self.home = Path(kwargs["home"])
+        if not self.home.exists():
+            logging.warning("ART home {} doesn't exist".format(self.home))
+        self.executable = self.home / "host" / "linux-x86" / "bin" / "art"
+        if not self.home.exists():
+            logging.warning(
+                "{} not found in ART home".format(self.executable))
+        self.executable = self.executable.absolute()
+
+    def get_executable(self) -> Path:
+        return self.executable
+
+    def __str__(self):
+        return "{} ART {}".format(super().__str__(), self.home)
+
+
 class JavaScriptRuntime(Runtime):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
