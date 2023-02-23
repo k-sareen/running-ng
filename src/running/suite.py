@@ -103,7 +103,7 @@ class DaCapo(JavaBenchmarkSuite):
         super().__init__(**kwargs)
         self.release: str
         self.release = kwargs["release"]
-        if self.release not in ["2006", "9.12", "evaluation", "android"]:
+        if self.release not in ["2006", "9.12", "evaluation", "android", "android-xalan"]:
             raise ValueError(
                 "DaCapo release {} not recongized".format(self.release))
         self.path: Path
@@ -187,12 +187,14 @@ class DaCapo(JavaBenchmarkSuite):
                 cp.append(str(self.path) + "/dacapo/classes.dex")
                 program_args = ["etalon.purdue.edu.dacapo.Harness", "-c", self.callback]
         else:
-            if self.release != "android":
+            if "android" not in self.release:
                 cp = []
                 program_args = ["-jar", str(self.path)]
-            else:
+            elif self.release == "android":
                 cp = ["dacapo/classes.dex"]
                 program_args = ["etalon.purdue.edu.dacapo.Harness"]
+            else: # android-xalan release
+                cp = [str(self.path)]
         # Timing iteration
         if type(timing_iteration) is int:
             program_args.extend(["-n", str(timing_iteration)])
@@ -206,7 +208,7 @@ class DaCapo(JavaBenchmarkSuite):
         program_args.extend(["-s", size])
         # Name of the benchmark
         program_args.append(bm_name)
-        if self.release != "android":
+        if "android" not in self.release:
             return JavaBenchmark(
                 jvm_args=[],
                 program_args=program_args,
