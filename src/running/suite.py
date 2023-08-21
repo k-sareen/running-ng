@@ -105,7 +105,7 @@ class DaCapo(JavaBenchmarkSuite):
         self.release = kwargs["release"]
         if self.release not in ["2006", "9.12", "evaluation", "android", "android-xalan"]:
             raise ValueError(
-                "DaCapo release {} not recongized".format(self.release))
+                "DaCapo release {} not recognized".format(self.release))
         self.path: Path
         self.path = Path(kwargs["path"])
         if not self.path.exists():

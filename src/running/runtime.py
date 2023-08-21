@@ -76,6 +76,31 @@ class JVM(Runtime):
 
 
 @register(Runtime)
+class ARTDevice(JVM):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.release = kwargs["release"]
+        self.home: Path
+        self.home = Path(kwargs["home"])
+        self.path: Optional[Path]
+        if kwargs.get("path"):
+            self.path = Path(kwargs.get("path"))
+        else:
+            self.path = None
+        if self.path != None:
+            self.executable = self.path
+        else:
+            self.executable = self.home / "bin" / "dalvikvm64"
+        self.image = Path(kwargs["image"])
+
+    def get_executable(self) -> Path:
+        return self.executable
+
+    def __str__(self):
+        return "{} ARTDevice {} {}".format(super().__str__(), self.release, self.home)
+
+
+@register(Runtime)
 class OpenJDK(JVM):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

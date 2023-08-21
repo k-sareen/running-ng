@@ -12,9 +12,24 @@ from datetime import datetime
 import subprocess
 import time
 
+WRAPPER: Optional[str] = None
+
+
+def get_wrapper() -> Optional[str]:
+    global WRAPPER
+    return WRAPPER
+
+
+def set_wrapper(wrapper: str):
+    global WRAPPER
+    WRAPPER = wrapper
+
 
 def system(cmd, check=True) -> str:
-    return subprocess.run(cmd, check=check, stdout=subprocess.PIPE, shell=True).stdout.decode("utf-8")
+    if WRAPPER != None:
+        return subprocess.run("{} \"{}\"".format(WRAPPER, cmd), check=check, stdout=subprocess.PIPE, shell=True).stdout.decode("utf-8")
+    else:
+        return subprocess.run(cmd, check=check, stdout=subprocess.PIPE, shell=True).stdout.decode("utf-8")
 
 
 def register(parent_class):

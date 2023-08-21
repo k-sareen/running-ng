@@ -4,9 +4,9 @@ import subprocess
 import sys
 from time import sleep
 from typing import Any, List, Optional, Tuple, Union, Dict
-from running.runtime import D8, JavaScriptCore, OpenJDK, Runtime, DummyRuntime, SpiderMonkey
+from running.runtime import D8, JavaScriptCore, OpenJDK, ARTDevice, Runtime, DummyRuntime, SpiderMonkey
 from running.modifier import *
-from running.util import smart_quote, split_quoted
+from running.util import get_wrapper, smart_quote, split_quoted
 from pathlib import Path
 from copy import deepcopy
 from running import suite
@@ -30,6 +30,13 @@ class Benchmark(object):
         self.suite_name = suite_name
         self.env_args: Dict[str, str]
         self.env_args = {}
+        self.outer_wrapper: List[str]
+        outer_wrapper_cmd = get_wrapper()
+        if outer_wrapper_cmd is not None:
+            self.outer_wrapper = split_quoted(outer_wrapper_cmd)
+            self.outer_wrapper += split_quoted("cd /data/local;")
+        else:
+            self.outer_wrapper = []
         self.wrapper: List[str]
         if wrapper is not None:
             self.wrapper = split_quoted(wrapper)
@@ -72,7 +79,18 @@ class Benchmark(object):
         return b
 
     def to_string(self, runtime: Runtime) -> str:
-        return "{} {}".format(
+        if isinstance(runtime, ARTDevice):
+            return "{} {} LD_LIBRARY_PATH={} {}".format(
+                " ".join(smart_quote(x) for x in self.outer_wrapper),
+                self.get_env_str(),
+                runtime.home / "lib64",
+                " ".join([
+                    smart_quote(os.path.expandvars(x))
+                    for x in self.get_full_args(runtime)
+                ])
+            )
+        return "{} {} {}".format(
+            " ".join(smart_quote(x) for x in self.outer_wrapper),
             self.get_env_str(),
             " ".join([
                 smart_quote(os.path.expandvars(x))
@@ -88,10 +106,19 @@ class Benchmark(object):
             )
             return b"", b"", SubprocessrExit.Dryrun
         else:
-            cmd = self.get_full_args(runtime)
-            cmd = [os.path.expandvars(x) for x in cmd]
+            cmd: List[str]
             env_args = os.environ.copy()
-            env_args.update(self.env_args)
+            if not self.outer_wrapper:
+                env_args.update(self.env_args)
+                cmd = self.get_full_args(runtime)
+                cmd = [os.path.expandvars(x) for x in cmd]
+            else:
+                cmd = self.outer_wrapper
+                cmd += self.get_env_str().split(" ")
+                if isinstance(runtime, ARTDevice):
+                    cmd += ["LD_LIBRARY_PATH={}".format(runtime.home / "lib64")]
+                cmd += self.get_full_args(runtime)
+                cmd = [os.path.expandvars(x) for x in cmd]
             companion_out = b""
             stdout: Optional[bytes]
             if self.companion:
@@ -147,7 +174,7 @@ class BinaryBenchmark(Benchmark):
         super().__init__(**kwargs)
         self.program = program
         self.program_args = program_args
-        assert program.exists()
+        # assert program.exists()
 
     def __str__(self) -> str:
         return self.to_string(DummyRuntime(""))
@@ -212,6 +239,14 @@ class JavaBenchmark(Benchmark):
     def get_full_args(self, runtime: Runtime) -> List[Union[str, Path]]:
         cmd = super().get_full_args(runtime)
         cmd.append(runtime.get_executable())
+        if isinstance(runtime, ARTDevice):
+            if runtime.path != None:
+                cmd.extend(["-Ximage:{}".format(runtime.image)])
+            else:
+                cmd.extend(["-XXlib:libart.so",
+                    "-Xnorelocate",
+                    "-Ximage:{}".format(runtime.image)
+                ])
         cmd.extend(self.jvm_args)
         if isinstance(runtime, OpenJDK):
             if runtime.release >= 9:

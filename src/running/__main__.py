@@ -5,6 +5,7 @@ import argparse
 from running.__version__ import __VERSION__
 from running.command import fillin, runbms, minheap, log_preprocessor
 from running.suite import set_dry_run
+from running.util import set_wrapper
 import importlib.resources
 import os
 
@@ -21,6 +22,8 @@ def setup_parser():
                         version="running {}".format(__VERSION__))
     parser.add_argument("-d", "--dry-run", action="store_true",
                         help="dry run")
+    parser.add_argument("-w", "--wrapper",
+                        help="wrapper to run all commands with")
     subparsers = parser.add_subparsers()
     for m in MODULES:
         m.setup_parser(subparsers)
@@ -42,6 +45,8 @@ def main():
 
     if args.get("dry_run") == True:
         set_dry_run(True)
+    if args.get("wrapper"):
+        set_wrapper(args.get("wrapper"))
     with importlib.resources.path(__package__, "config") as config_path:
         os.environ["RUNNING_NG_PACKAGE_DATA"] = str(config_path)
         for m in MODULES:

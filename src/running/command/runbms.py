@@ -4,7 +4,7 @@ from running.suite import BenchmarkSuite, is_dry_run
 from running.benchmark import Benchmark, SubprocessrExit
 from running.config import Configuration
 from pathlib import Path
-from running.util import parse_config_str, system, get_logged_in_users, config_index_to_chr, config_str_encode
+from running.util import parse_config_str, system, get_logged_in_users, get_wrapper, config_index_to_chr, config_str_encode
 import socket
 from datetime import datetime
 from running.runtime import Runtime
@@ -166,32 +166,37 @@ def get_log_prologue(runtime: Runtime, bm: Benchmark) -> str:
     output += "\n"
     output += "running-ng v{}\n".format(__VERSION__)
     output += system("date") + "\n"
-    output += system("w") + "\n"
+    if get_wrapper() is None:
+        output += system("w") + "\n"
     output += system("vmstat 1 2") + "\n"
-    output += system("top -bcn 1 -w512 |head -n 12") + "\n"
+    if get_wrapper() is None:
+        output += system("top -bcn 1 -w512 |head -n 12") + "\n"
     output += "Environment variables: \n"
     for k, v in sorted(os.environ.items()):
+        # Hack to prevent the shell PS1 from being printed into the log file
+        # which breaks python since it uses \u to represent the $USER and
+        # python interprets \u as a unicode character
+        if k == "PS1":
+            continue
         output += "\t{}={}\n".format(k, v)
     output += "OS: "
     output += system("uname -a")
     output += "CPU: "
     output += system("cat /proc/cpuinfo | grep 'model name' | head -1")
     output += "number of cores: "
-    cores = system("cat /proc/cpuinfo | grep MHz | wc -l")
+    cores = system("cat /proc/cpuinfo | grep processor | wc -l")
     output += cores
-    has_cpufreq = Path("/sys/devices/system/cpu/cpu0/cpufreq").is_dir()
-    if has_cpufreq:
-        for i in range(0, int(cores)):
-            output += "Frequency of cpu {}: ".format(i)
-            output += hz_to_ghz(
-                system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_cur_freq".format(i)))
-            output += "\n"
-            output += "Governor of cpu {}: ".format(i)
-            output += system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_governor".format(i))
-            output += "Scaling_min_freq of cpu {}: ".format(i)
-            output += hz_to_ghz(
-                system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_min_freq".format(i)))
-            output += "\n"
+    for i in range(0, int(cores)):
+        output += "Frequency of cpu {}: ".format(i)
+        output += hz_to_ghz(
+            system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_cur_freq".format(i)))
+        output += "\n"
+        output += "Governor of cpu {}: ".format(i)
+        output += system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_governor".format(i))
+        output += "Scaling_min_freq of cpu {}: ".format(i)
+        output += hz_to_ghz(
+            system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_min_freq".format(i)))
+        output += "\n"
     return output
 
 
@@ -221,10 +226,11 @@ def run_one_benchmark(
     timeout_count: DefaultDict[str, int]
     timeout_count = DefaultDict(int)
     logged_in_users: Set[str]
-    logged_in_users = get_logged_in_users()
-    if len(logged_in_users) > 1:
-        logging.warning("More than one user logged in: {}".format(
-            " ".join(logged_in_users)))
+    if get_wrapper() is None:
+        logged_in_users = get_logged_in_users()
+        if len(logged_in_users) > 1:
+            logging.warning("More than one user logged in: {}".format(
+                " ".join(logged_in_users)))
     ever_ran = [False] * len(configs)
     for i in range(0, invocations):
         for p in plugins.values():
