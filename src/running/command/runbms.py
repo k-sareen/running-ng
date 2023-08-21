@@ -7,7 +7,7 @@ from pathlib import Path
 from running.util import parse_config_str, system, get_logged_in_users, get_wrapper, config_index_to_chr, config_str_encode
 import socket
 from datetime import datetime
-from running.runtime import Runtime
+from running.runtime import Runtime, ARTDevice
 import tempfile
 import subprocess
 import os
@@ -152,7 +152,11 @@ def get_filename_completed(bm: Benchmark, hfac: Optional[float], size: Optional[
 
 
 def get_log_epilogue(runtime: Runtime, bm: Benchmark) -> str:
-    return ""
+    output = ""
+    if isinstance(runtime, ARTDevice):
+        output += "ADB logcat:\n"
+        output += system("adb logcat -d", use_wrapper=False)
+    return output
 
 
 def hz_to_ghz(hzstr: str) -> str:
@@ -166,19 +170,20 @@ def get_log_prologue(runtime: Runtime, bm: Benchmark) -> str:
     output += "\n"
     output += "running-ng v{}\n".format(__VERSION__)
     output += system("date") + "\n"
-    if get_wrapper() is None:
+    if not isinstance(runtime, ARTDevice):
         output += system("w") + "\n"
     output += system("vmstat 1 2") + "\n"
-    if get_wrapper() is None:
+    if not isinstance(runtime, ARTDevice):
         output += system("top -bcn 1 -w512 |head -n 12") + "\n"
     output += "Environment variables: \n"
-    for k, v in sorted(os.environ.items()):
-        # Hack to prevent the shell PS1 from being printed into the log file
-        # which breaks python since it uses \u to represent the $USER and
-        # python interprets \u as a unicode character
-        if k == "PS1":
-            continue
-        output += "\t{}={}\n".format(k, v)
+    output += system("env")
+    # for k, v in sorted(os.environ.items()):
+    #     # Hack to prevent the shell PS1 from being printed into the log file
+    #     # which breaks python since it uses \u to represent the $USER and
+    #     # python interprets \u as a unicode character
+    #     if k == "PS1":
+    #         continue
+    #     output += "\t{}={}\n".format(k, v)
     output += "OS: "
     output += system("uname -a")
     output += "CPU: "
@@ -197,6 +202,8 @@ def get_log_prologue(runtime: Runtime, bm: Benchmark) -> str:
         output += hz_to_ghz(
             system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_min_freq".format(i)))
         output += "\n"
+    if isinstance(runtime, ARTDevice):
+        output += system("adb logcat -c", use_wrapper=False)
     return output
 
 
