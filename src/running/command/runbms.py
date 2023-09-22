@@ -7,7 +7,8 @@ from pathlib import Path
 from running.util import parse_config_str, system, get_logged_in_users, get_wrapper, config_index_to_chr, config_str_encode
 import socket
 from datetime import datetime
-from running.runtime import Runtime, ARTDevice
+from running.runtime import Runtime, ARTDevice, AndroidZygote
+import time
 import tempfile
 import subprocess
 import os
@@ -118,7 +119,7 @@ def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, size: Opti
         mod_b = mod_b.attach_modifiers([runtime.get_heapsize_modifier(size)])
     if fd:
         prologue = get_log_prologue(runtime, mod_b)
-        fd.write(prologue.encode("ascii"))
+        fd.write(prologue.encode("ascii", "ignore"))
     output, companion_out, exit_status = mod_b.run(runtime, cwd=runbms_dir)
     if fd:
         fd.write(output)
@@ -127,7 +128,7 @@ def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, size: Opti
             fd.write(companion_out)
     if fd:
         epilogue = get_log_epilogue(runtime, mod_b)
-        fd.write(epilogue.encode("ascii"))
+        fd.write(epilogue.encode("ascii", "ignore"))
     return output, exit_status
 
 
@@ -156,6 +157,9 @@ def get_log_epilogue(runtime: Runtime, bm: Benchmark) -> str:
     if isinstance(runtime, ARTDevice):
         output += "ADB logcat:\n"
         output += system("adb logcat -d", use_wrapper=False)
+    if isinstance(runtime, AndroidZygote):
+        # Sleep for 1s to ensure that device state is consistent
+        time.sleep(1)
     return output
 
 
@@ -170,10 +174,10 @@ def get_log_prologue(runtime: Runtime, bm: Benchmark) -> str:
     output += "\n"
     output += "running-ng v{}\n".format(__VERSION__)
     output += system("date") + "\n"
-    if not isinstance(runtime, ARTDevice):
+    if not (isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote)):
         output += system("w") + "\n"
     output += system("vmstat 1 2") + "\n"
-    if not isinstance(runtime, ARTDevice):
+    if not (isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote)):
         output += system("top -bcn 1 -w512 |head -n 12") + "\n"
     output += "Environment variables: \n"
     output += system("env")
@@ -202,7 +206,7 @@ def get_log_prologue(runtime: Runtime, bm: Benchmark) -> str:
         output += hz_to_ghz(
             system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_min_freq".format(i)))
         output += "\n"
-    if isinstance(runtime, ARTDevice):
+    if isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote):
         output += system("adb logcat -c", use_wrapper=False)
     return output
 

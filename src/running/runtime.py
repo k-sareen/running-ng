@@ -1,8 +1,9 @@
-from running.modifier import JVMArg, Modifier, JSArg
+from running.modifier import JVMArg, Modifier, JSArg, ProgramArg
 from typing import Any, Dict, Union
 from pathlib import Path
 import logging
-from running.util import register
+import time
+from running.util import register, system
 
 
 class Runtime(object):
@@ -238,4 +239,27 @@ class JavaScriptCore(JavaScriptRuntime):
 
     def is_oom(self, output: bytes) -> bool:
         # FIXME not sure how to check for OOM for JavaScriptCore yet
+        return False
+
+@register(Runtime)
+class AndroidZygote(Runtime):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def get_executable(self) -> Path:
+        return Path("/system/bin/am")
+
+    def __str__(self):
+        return "AndroidZygote {}".format(self.name)
+
+    def get_heapsize_modifier(self, size: int) -> Modifier:
+        system("adb shell \"echo {} > /data/local/minheap\"".format(size), use_wrapper=False)
+        # Sleep for 1s to ensure that the file write has gone through and device is in consistent state
+        time.sleep(1)
+        return ProgramArg(name="", val="")
+
+    def is_oom(self, output: bytes) -> bool:
+        for pattern in [b"Allocation Failed", b"OutOfMemoryError", b"ran out of memory", b"panicked at 'Out of memory!'"]:
+            if pattern in output:
+                return True
         return False

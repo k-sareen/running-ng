@@ -1,10 +1,10 @@
 from typing import Any, Dict, Optional, DefaultDict
 from running.config import Configuration
 from pathlib import Path
-from running.runtime import NativeExecutable, Runtime
+from running.runtime import NativeExecutable, Runtime, AndroidZygote
 from running.benchmark import Benchmark, SubprocessrExit
 from running.suite import BenchmarkSuite
-from running.util import parse_config_str, config_str_encode
+from running.util import parse_config_str, config_str_encode, system
 import logging
 import tempfile
 import yaml
@@ -30,14 +30,18 @@ class ContinueSearch(Enum):
     HeapTooSmall = 3
 
 
-def run_bm_with_retry(suite: BenchmarkSuite, runtime: Runtime, bm_with_heapsize: Benchmark, minheap_dir: Path, attempts: int) -> ContinueSearch:
+def run_bm_with_retry(suite: BenchmarkSuite, runtime: Runtime, bm_with_heapsize: Benchmark, minheap_dir: Path, attempts: int, heapsize: int) -> ContinueSearch:
     def log(s):
         return print(s, end="", flush=True)
 
     log(" ")
     for _ in range(attempts):
+        if isinstance(runtime, AndroidZygote):
+            system("adb logcat -c", use_wrapper=False)
         output, _companion_output, subprocess_exit = bm_with_heapsize.run(
             runtime, cwd=minheap_dir)
+        with open(minheap_dir / "{}_{}.txt".format(bm.name, heapsize), "w") as f:
+            print(output.decode("utf-8", "ignore"), file=f)
         if runtime.is_oom(output):
             # if OOM is detected, we exit the loop regardless the exit statussour
             log("x ")
@@ -70,7 +74,7 @@ def minheap_one_bm(suite: BenchmarkSuite, runtime: Runtime, bm: Benchmark, heap:
         print(size_str, end="", flush=True)
         bm_with_heapsize = bm.attach_modifiers([heapsize])
         result = run_bm_with_retry(
-            suite, runtime, bm_with_heapsize, minheap_dir, attempts)
+            suite, runtime, bm_with_heapsize, minheap_dir, attempts, mid)
         if result is ContinueSearch.Abort:
             return float('inf')
         elif result is ContinueSearch.HeapTooBig:

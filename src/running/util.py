@@ -27,9 +27,9 @@ def set_wrapper(wrapper: str):
 
 def system(cmd, check=True, use_wrapper=True) -> str:
     if WRAPPER != None and use_wrapper:
-        return subprocess.run("{} \"{}\"".format(WRAPPER, cmd), check=check, stdout=subprocess.PIPE, shell=True).stdout.decode("utf-8")
+        return subprocess.run("{} \"{}\"".format(WRAPPER, cmd), check=check, stdout=subprocess.PIPE, shell=True).stdout.decode("utf-8", "ignore")
     else:
-        return subprocess.run(cmd, check=check, stdout=subprocess.PIPE, shell=True).stdout.decode("utf-8")
+        return subprocess.run(cmd, check=check, stdout=subprocess.PIPE, shell=True).stdout.decode("utf-8", "ignore")
 
 
 def register(parent_class):

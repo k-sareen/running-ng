@@ -4,9 +4,9 @@ import subprocess
 import sys
 from time import sleep
 from typing import Any, List, Optional, Tuple, Union, Dict
-from running.runtime import D8, JavaScriptCore, OpenJDK, ARTDevice, Runtime, DummyRuntime, SpiderMonkey
+from running.runtime import D8, JavaScriptCore, OpenJDK, ARTDevice, Runtime, DummyRuntime, SpiderMonkey, AndroidZygote
 from running.modifier import *
-from running.util import get_wrapper, smart_quote, split_quoted
+from running.util import get_wrapper, smart_quote, split_quoted, system
 from pathlib import Path
 from copy import deepcopy
 from running import suite
@@ -146,6 +146,10 @@ class Benchmark(object):
                 subprocess_exit = SubprocessrExit.Timeout
                 stdout = e.stdout
             finally:
+                if isinstance(runtime, AndroidZygote):
+                    stdout = system("adb logcat -d", use_wrapper=False)
+                    stdout = stdout.encode("ascii", "replace")
+
                 if self.companion:
                     # send ^C to the companion's controlling terminal
                     # this is so that we can terminal setuid programs like sudo

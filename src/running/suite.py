@@ -450,3 +450,75 @@ class SPECjvm98(JavaBenchmarkSuite):
     def is_passed(self, output: bytes) -> bool:
         # FIXME
         return b"**NOT VALID**" not in output
+
+@register(BenchmarkSuite)
+class AndroidApps(JavaBenchmarkSuite):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.apk: str
+        self.apk = kwargs.get("apk")
+        self.runner: str
+        self.runner = kwargs.get("runner")
+        self.timeout = kwargs.get("timeout")
+        self.wrapper: Optional[Union[Dict[str, str], str]]
+        self.wrapper = kwargs.get("wrapper")
+        self.minheap: Optional[str]
+        self.minheap = kwargs.get("minheap")
+        self.minheap_values: Dict[str, Dict[str, int]]
+        self.minheap_values = kwargs.get("minheap_values", {})
+        if not isinstance(self.minheap_values, dict):
+            raise TypeError(
+                "The minheap_values of {} should be a dictionary".format(self.name))
+        if self.minheap:
+            if not isinstance(self.minheap, str):
+                raise TypeError(
+                    "The minheap of {} should be a string that selects from a minheap_values".format(self.name))
+            if self.minheap not in self.minheap_values:
+                raise KeyError(
+                    "{} is not a valid entry of {}.minheap_values".format(self.name, self.name))
+
+    def __str__(self) -> str:
+        return "{} Android Apps {} {}".format(super().__str__(), self.apk, self.runner)
+
+    def get_benchmark(self, bm_spec: str) -> 'JavaBenchmark':
+        bm_name = bm_spec
+        name = bm_spec
+        return JavaBenchmark(
+            jvm_args=[],
+            program_args=["instrument", "-w", "{}/{}".format(self.apk, self.runner)],
+            cp=[],
+            wrapper=self.get_wrapper(bm_name),
+            suite_name=self.name,
+            name=name,
+            timeout=self.timeout
+        )
+
+    def get_minheap(self, bm: Benchmark) -> int:
+        assert isinstance(bm, JavaBenchmark)
+        name = bm.name
+        if not self.minheap:
+            logging.warning(
+                "No minheap_value of {} is selected".format(self))
+            return __DEFAULT_MINHEAP
+        minheap = self.minheap_values[self.minheap]
+        if name not in minheap:
+            logging.warning(
+                "Minheap for {} of {} not set".format(name, self))
+            return __DEFAULT_MINHEAP
+        return minheap[name]
+
+    def is_passed(self, output: bytes) -> bool:
+        return b"App Test PASSED!" in output
+
+    def get_wrapper(self, bm_name: str) -> Optional[str]:
+        if self.wrapper is None:
+            return None
+        elif type(self.wrapper) == str:
+            return self.wrapper
+        elif type(self.wrapper) == dict:
+            return self.wrapper.get(bm_name)
+        else:
+            raise TypeError("wrapper of {} must be either null, "
+                            "a string (the same wrapper for all benchmarks), "
+                            "or a dictionary (different wrappers for"
+                            "differerent benchmarks)".format(self.name))
