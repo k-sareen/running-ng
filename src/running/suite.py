@@ -184,15 +184,23 @@ class DaCapo(JavaBenchmarkSuite):
             if self.release != "android":
                 program_args = ["Harness", "-c", self.callback]
             else:
-                cp.append(str(self.path) + "/dacapo/classes.dex")
-                program_args = ["etalon.purdue.edu.dacapo.Harness", "-c", self.callback]
+                if bm_name != "gcbench":
+                    cp.append(str(self.path) + "/dacapo/classes.dex")
+                    program_args = ["etalon.purdue.edu.dacapo.Harness", "-c", self.callback]
+                else:
+                    cp = [str(self.path) + "/GCBench.jar"]
+                    program_args = ["GCBench"]
         else:
             if "android" not in self.release:
                 cp = []
                 program_args = ["-jar", str(self.path)]
             elif self.release == "android":
-                cp = ["dacapo/classes.dex"]
-                program_args = ["etalon.purdue.edu.dacapo.Harness"]
+                if bm_name != "gcbench":
+                    cp = ["dacapo/classes.dex"]
+                    program_args = ["etalon.purdue.edu.dacapo.Harness"]
+                else:
+                    cp = [str(self.path) + "/GCBench.jar"]
+                    program_args = ["GCBench"]
             else: # android-xalan release
                 cp = [str(self.path)]
         # Timing iteration
@@ -204,10 +212,11 @@ class DaCapo(JavaBenchmarkSuite):
                 program_args.append("-converge")
             else:
                 program_args.append("--converge")
-        # Input size
-        program_args.extend(["-s", size])
-        # Name of the benchmark
-        program_args.append(bm_name)
+        if bm_name != "gcbench":
+            # Input size
+            program_args.extend(["-s", size])
+            # Name of the benchmark
+            program_args.append(bm_name)
         if "android" not in self.release:
             return JavaBenchmark(
                 jvm_args=[],
