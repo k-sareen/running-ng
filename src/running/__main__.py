@@ -47,7 +47,7 @@ def main():
         set_dry_run(True)
     if args.get("wrapper"):
         set_wrapper(args.get("wrapper"))
-    with importlib.resources.path(__package__, "config") as config_path:
+    with (importlib.resources.files(__package__) / "config") as config_path:
         os.environ["RUNNING_NG_PACKAGE_DATA"] = str(config_path)
         for m in MODULES:
             if m.run(args):

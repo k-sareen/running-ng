@@ -54,7 +54,7 @@ suites:
   dacapo-android:
     type: DaCapo
     release: "android"
-    path: /home/kunals/git/android/benchmarks/android-dacapobach
+    path: /data/local/benchmarks/android-dacapobach
     minheap: art-CC
     minheap_values:
       art-CC:

@@ -217,29 +217,29 @@ class DaCapo(JavaBenchmarkSuite):
             program_args.extend(["-s", size])
             # Name of the benchmark
             program_args.append(bm_name)
-        if "android" not in self.release:
-            return JavaBenchmark(
-                jvm_args=[],
-                program_args=program_args,
-                cp=cp,
-                wrapper=self.get_wrapper(bm_name),
-                companion=self.get_companion(bm_name),
-                suite_name=self.name,
-                name=name,
-                timeout=timeout
-            )
-        else:
-            return AndroidBenchmark(
-                art_args=[],
-                jvm_args=[],
-                program_args=program_args,
-                cp=cp,
-                wrapper=self.get_wrapper(bm_name),
-                companion=self.get_companion(bm_name),
-                suite_name=self.name,
-                name=name,
-                timeout=timeout
-            )
+        # if "android" not in self.release:
+        return JavaBenchmark(
+            jvm_args=[],
+            program_args=program_args,
+            cp=cp,
+            wrapper=self.get_wrapper(bm_name),
+            companion=self.get_companion(bm_name),
+            suite_name=self.name,
+            name=name,
+            timeout=timeout
+        )
+        # else:
+            # return AndroidBenchmark(
+            #     art_args=[],
+            #     jvm_args=[],
+            #     program_args=program_args,
+            #     cp=cp,
+            #     wrapper=self.get_wrapper(bm_name),
+            #     companion=self.get_companion(bm_name),
+            #     suite_name=self.name,
+            #     name=name,
+            #     timeout=timeout
+            # )
 
 
     def get_minheap(self, bm: Benchmark) -> int:
