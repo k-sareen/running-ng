@@ -8,6 +8,7 @@ from running.util import parse_config_str, system, get_logged_in_users, get_wrap
 import socket
 from datetime import datetime
 from running.runtime import Runtime, ARTDevice, AndroidZygote
+import json
 import time
 import tempfile
 import subprocess
@@ -112,11 +113,28 @@ def get_hfacs(heap_range: int, spread_factor: int, N: int, ns: List[int]) -> Lis
     return [spread(spread_factor, N, n)/divisor + start for n in ns]
 
 
-def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, size: Optional[int], fd: Optional[BinaryIO]) -> Tuple[bytes, SubprocessrExit]:
+def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, suite: BenchmarkSuite, size: Optional[int], fd: Optional[BinaryIO]) -> Tuple[bytes, SubprocessrExit]:
     runtime, mods = parse_config_str(configuration, c)
     mod_b = b.attach_modifiers(mods)
     if size is not None:
-        mod_b = mod_b.attach_modifiers([runtime.get_heapsize_modifier(size)])
+        if isinstance(runtime, AndroidZygote):
+            minheaps = suite.minheap_values[suite.minheap].copy()
+            minheaps[b.name] = size
+
+            minheap_list = []
+            for bm_name, heap in minheaps.items():
+                minheap_list.append({
+                    "package": suite.BENCHMARK_PACKAGE_MAP[bm_name],
+                    "heap_size": heap,
+                })
+
+            json_tfile = tempfile.NamedTemporaryFile(mode="w+")
+            json.dump(minheap_list, json_tfile)
+            json_tfile.flush()
+            system("adb push {} /data/local/heap_sizes.json".format(json_tfile.name), use_wrapper=False)
+            time.sleep(1)
+        else:
+            mod_b = mod_b.attach_modifiers([runtime.get_heapsize_modifier(size)])
     if fd:
         prologue = get_log_prologue(runtime, mod_b)
         fd.write(prologue.encode("ascii", "ignore"))
@@ -154,9 +172,9 @@ def get_filename_completed(bm: Benchmark, hfac: Optional[float], size: Optional[
 
 def get_log_epilogue(runtime: Runtime, bm: Benchmark) -> str:
     output = ""
-    if isinstance(runtime, ARTDevice):
+    if isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote):
         output += "ADB logcat:\n"
-        output += system("adb logcat -d", use_wrapper=False)
+        output += system("adb logcat -d '*:I'", use_wrapper=False)
     if isinstance(runtime, AndroidZygote):
         # Sleep for 1s to ensure that device state is consistent
         time.sleep(1)
@@ -271,14 +289,14 @@ def run_one_benchmark(
             runtime, _ = parse_config_str(configuration, c)
             if is_dry_run():
                 output, exit_status = run_benchmark_with_config(
-                    c, bm, runbms_dir, size, None
+                    c, bm, runbms_dir, suite, size, None
                 )
                 assert exit_status is SubprocessrExit.Dryrun
             else:
                 fd: BinaryIO
                 with (log_dir / log_filename).open("ab") as fd:
                     output, exit_status = run_benchmark_with_config(
-                        c, bm, runbms_dir, size, fd
+                        c, bm, runbms_dir, suite, size, fd
                     )
                 ever_ran[j] = True
             if runtime.is_oom(output):

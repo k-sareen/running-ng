@@ -146,10 +146,6 @@ class Benchmark(object):
                 subprocess_exit = SubprocessrExit.Timeout
                 stdout = e.stdout
             finally:
-                if isinstance(runtime, AndroidZygote):
-                    stdout = system("adb logcat -d", use_wrapper=False)
-                    stdout = stdout.encode("ascii", "replace")
-
                 if self.companion:
                     # send ^C to the companion's controlling terminal
                     # this is so that we can terminal setuid programs like sudo

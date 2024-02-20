@@ -462,6 +462,20 @@ class SPECjvm98(JavaBenchmarkSuite):
 
 @register(BenchmarkSuite)
 class AndroidApps(JavaBenchmarkSuite):
+    BENCHMARK_PACKAGE_MAP = {
+        "AcrobatSearchAndScrollTest": "com.adobe.reader",
+        "AirBnBScrollAndClickTest": "com.airbnb.android",
+        "BBCScrollAndClickTest": "bbc.mobile.news.ww",
+        "FacebookScrollTest": "com.facebook.katana",
+        "InstagramScrollTest": "com.instagram.android",
+        "MediumScrollAndClickTest": "com.medium.reader",
+        "RedditScrollTest": "com.reddit.frontpage",
+        "SpotifyListenAndSearchTest": "com.spotify.music",
+        "TwitchStreamTest": "tv.twitch.android.app",
+        "TwitterScrollTest": "com.twitter.android",
+        "WikipediaSearchAndScrollTest": "org.wikipedia",
+    }
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.apk: str
@@ -494,7 +508,8 @@ class AndroidApps(JavaBenchmarkSuite):
         name = bm_spec
         return JavaBenchmark(
             jvm_args=[],
-            program_args=["instrument", "-w", "{}/{}".format(self.apk, self.runner)],
+            program_args=["instrument", "-e", "bm", "{}".format(name),
+                          "-w", "{}/{}".format(self.apk, self.runner)],
             cp=[],
             wrapper=self.get_wrapper(bm_name),
             suite_name=self.name,
@@ -517,7 +532,7 @@ class AndroidApps(JavaBenchmarkSuite):
         return minheap[name]
 
     def is_passed(self, output: bytes) -> bool:
-        return b"App Test PASSED!" in output
+        return b"PASSED" in output
 
     def get_wrapper(self, bm_name: str) -> Optional[str]:
         if self.wrapper is None:
