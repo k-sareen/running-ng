@@ -225,6 +225,8 @@ def get_log_prologue(runtime: Runtime, bm: Benchmark) -> str:
             system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_min_freq".format(i)))
         output += "\n"
     if isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote):
+        output += system("adb shell dumpsys thermalservice", use_wrapper=False)
+    if isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote):
         output += system("adb logcat -c", use_wrapper=False)
     if isinstance(runtime, AndroidZygote):
         # Wake up device by pressing home before running test
