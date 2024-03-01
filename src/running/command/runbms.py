@@ -118,18 +118,13 @@ def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, suite: Ben
     mod_b = b.attach_modifiers(mods)
     if size is not None:
         if isinstance(runtime, AndroidZygote):
-            minheaps = suite.minheap_values[suite.minheap].copy()
-            minheaps[b.name] = size
-
-            minheap_list = []
-            for bm_name, heap in minheaps.items():
-                minheap_list.append({
-                    "package": suite.BENCHMARK_PACKAGE_MAP[bm_name],
-                    "heap_size": heap,
-                })
+            heap_size_list = [{
+                "package": suite.BENCHMARK_PACKAGE_MAP[b.name],
+                "heap_size": size,
+            }]
 
             json_tfile = tempfile.NamedTemporaryFile(mode="w+")
-            json.dump(minheap_list, json_tfile)
+            json.dump(heap_size_list, json_tfile)
             json_tfile.flush()
             system("adb push {} /data/local/heap_sizes.json".format(json_tfile.name), use_wrapper=False)
             time.sleep(1)
