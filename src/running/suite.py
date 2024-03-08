@@ -469,7 +469,7 @@ class AndroidApps(JavaBenchmarkSuite):
         "DiscordMessageAndCallTest": "com.discord",
         "FacebookScrollTest": "com.facebook.katana",
         "GmailScrollAndClickTest": "com.google.android.gm",
-        "GoogleNewsScrollTest": "com.google.android.apps.magazine",
+        "GoogleNewsScrollTest": "com.google.android.apps.magazines",
         "InstagramScrollTest": "com.instagram.android",
         "MapsRoutePreviewTest": "com.google.android.apps.maps",
         "MediumScrollAndClickTest": "com.medium.reader",
