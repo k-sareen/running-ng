@@ -468,6 +468,8 @@ class AndroidApps(JavaBenchmarkSuite):
         "BBCScrollAndClickTest": "bbc.mobile.news.ww",
         "DiscordMessageAndCallTest": "com.discord",
         "FacebookScrollTest": "com.facebook.katana",
+        "GmailScrollAndClickTest": "com.google.android.gm",
+        "GoogleNewsScrollTest": "com.google.android.apps.magazine",
         "InstagramScrollTest": "com.instagram.android",
         "MapsRoutePreviewTest": "com.google.android.apps.maps",
         "MediumScrollAndClickTest": "com.medium.reader",
@@ -478,6 +480,13 @@ class AndroidApps(JavaBenchmarkSuite):
         "TwitterScrollTest": "com.twitter.android",
         "WikipediaSearchAndScrollTest": "org.wikipedia",
     }
+
+    REQUIRES_HEAP_SIZE_SPOOFING = [
+        "BBCScrollAndClickTest",
+        "InstagramScrollTest",
+        "MapsRoutePreviewTest",
+        "TwitterScrollTest",
+    ]
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

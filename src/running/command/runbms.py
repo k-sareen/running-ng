@@ -118,9 +118,13 @@ def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, suite: Ben
     mod_b = b.attach_modifiers(mods)
     if size is not None:
         if isinstance(runtime, AndroidZygote):
+            heap_size_spoofing = False
+            if b.name in suite.REQUIRES_HEAP_SIZE_SPOOFING:
+                heap_size_spoofing = True
             heap_size_list = [{
                 "package": suite.BENCHMARK_PACKAGE_MAP[b.name],
                 "heap_size": size,
+                "heap_size_spoofing": heap_size_spoofing,
             }]
 
             json_tfile = tempfile.NamedTemporaryFile(mode="w+")
