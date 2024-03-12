@@ -288,13 +288,20 @@ def run_one_benchmark(
                     continue
             log_filename = get_filename(bm, hfac, size, c)
             logging.debug("Running with log filename {}".format(log_filename))
-            runtime, _ = parse_config_str(configuration, c)
+            runtime, mods = parse_config_str(configuration, c)
             if is_dry_run():
                 output, exit_status = run_benchmark_with_config(
                     c, bm, runbms_dir, suite, size, None
                 )
                 assert exit_status is SubprocessrExit.Dryrun
             else:
+                # Set up the benchmark at least once so that it will have
+                # consistent results later on. Run this without any heap size
+                # so that it will guaranteed work
+                if isinstance(runtime, AndroidZygote) and i == 0:
+                    mod_b = bm.attach_modifiers(mods)
+                    mod_b.run(runtime, cwd=runbms_dir)
+
                 fd: BinaryIO
                 with (log_dir / log_filename).open("ab") as fd:
                     output, exit_status = run_benchmark_with_config(
