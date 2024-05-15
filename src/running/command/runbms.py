@@ -260,6 +260,7 @@ def run_one_benchmark(
     timeout_count: DefaultDict[str, int]
     timeout_count = DefaultDict(int)
     logged_in_users: Set[str]
+    ran_mock = False
     if get_wrapper() is None:
         logged_in_users = get_logged_in_users()
         if len(logged_in_users) > 1:
@@ -298,9 +299,10 @@ def run_one_benchmark(
                 # Set up the benchmark at least once so that it will have
                 # consistent results later on. Run this without any heap size
                 # so that it will guaranteed work
-                if isinstance(runtime, AndroidZygote) and i == 0:
+                if isinstance(runtime, AndroidZygote) and not ran_mock:
                     mod_b = bm.attach_modifiers(mods)
                     mod_b.run(runtime, cwd=runbms_dir)
+                    ran_mock = True
 
                 fd: BinaryIO
                 with (log_dir / log_filename).open("ab") as fd:
