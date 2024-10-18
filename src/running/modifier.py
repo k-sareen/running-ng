@@ -126,6 +126,16 @@ class ProgramArg(Modifier):
 
 
 @register(Modifier)
+class AppRunnerArg(Modifier):
+    def __init__(self, value_opts=None, **kwargs):
+        super().__init__(value_opts, **kwargs)
+        self.val = split_quoted(self._kwargs["val"])
+
+    def __str__(self) -> str:
+        return "{} AppRunnerArg {}".format(super().__str__(), self.val)
+
+
+@register(Modifier)
 class Wrapper(Modifier):
     def __init__(self, value_opts=None, **kwargs):
         super().__init__(value_opts, **kwargs)

@@ -227,6 +227,16 @@ class JavaBenchmark(Benchmark):
                 jb.jvm_args.extend(m.val)
             elif type(m) == ProgramArg:
                 jb.program_args.extend(m.val)
+            elif type(m) == AppRunnerArg:
+                index = -1;
+                for i, arg in enumerate(jb.program_args):
+                    if arg == "-w":
+                        index = i
+                        break
+                if index != -1:
+                    for v in m.val:
+                        jb.program_args.insert(index, v)
+                        index += 1
             elif isinstance(m, JVMClasspathAppend):
                 jb.cp.extend(m.val)
             elif type(m) == JVMClasspathPrepend:
