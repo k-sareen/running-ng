@@ -121,12 +121,16 @@ def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, suite: Ben
     if size is not None:
         if isinstance(runtime, AndroidZygote):
             heap_size_spoofing = False
+            disable_sched_setaffinity = False
             if b.name in suite.REQUIRES_HEAP_SIZE_SPOOFING:
                 heap_size_spoofing = True
+            if b.name in suite.REQUIRES_DISABLE_SETAFFINITY:
+                disable_sched_setaffinity = True
             heap_size_list = [{
                 "package": suite.BENCHMARK_PACKAGE_MAP[b.name],
                 "heap_size": size,
                 "heap_size_spoofing": heap_size_spoofing,
+                "disable_sched_setaffinity": disable_sched_setaffinity,
             }]
 
             json_tfile = tempfile.NamedTemporaryFile(mode="w+")

@@ -488,6 +488,11 @@ class AndroidApps(JavaBenchmarkSuite):
         "TwitterScrollTest",
     ]
 
+    REQUIRES_DISABLE_SETAFFINITY = [
+        "InstagramScrollTest",
+        "TikTokScrollTest",
+    ]
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.apk: str
