@@ -25,6 +25,7 @@ minheap_multiplier: float
 remote_host: Optional[str]
 skip_oom: Optional[int]
 skip_timeout: Optional[int]
+invert_hfacs: Optional[bool]
 plugins: Dict[str, Any]
 resume: Optional[str]
 
@@ -44,6 +45,7 @@ def setup_parser(subparsers):
     f.add_argument("--skip-timeout", type=int)
     f.add_argument("--resume", type=str)
     f.add_argument("--workdir", type=Path)
+    f.add_argument("--invert-hfacs", action="store_true")
 
 
 def getid() -> str:
@@ -366,6 +368,26 @@ def run_one_hfac(
         p.end_hfac(hfac)
 
 
+def run_one_benchmark_with_hfacs(
+    invocations: int,
+    bm: Benchmark,
+    suite: BenchmarkSuite,
+    hfacs: List[float],
+    configs: List[str],
+    runbms_dir: Path,
+    log_dir: Path
+):
+    p: "RunbmsPlugin"
+    for hfac in hfacs:
+        for p in plugins.values():
+            p.start_hfac(hfac)
+        run_one_benchmark(invocations, suite, bm, hfac,
+                          configs, runbms_dir, log_dir)
+        rsync(log_dir)
+        for p in plugins.values():
+            p.end_hfac(hfac)
+
+
 def ensure_remote_dir(log_dir):
     if not is_dry_run() and remote_host is not None:
         log_dir = log_dir.resolve()
@@ -410,6 +432,8 @@ def run(args):
         skip_oom = args.get("skip_oom")
         global skip_timeout
         skip_timeout = args.get("skip_timeout")
+        global invert_hfacs
+        invert_hfacs = args.get("invert_hfacs")
         # Load from configuration file
         global configuration
         configuration = Configuration.from_file(
@@ -466,12 +490,33 @@ def run(args):
                              configs, Path(runbms_dir), log_dir)
                 print()
 
+        def run_benchmarks_with_inverted_hfacs(hfacs):
+            logging.info("hfacs: {}".format(
+                ", ".join([
+                    hfac_str(hfac)
+                    for hfac in hfacs
+                ])
+            ))
+            for suite_name, bms in benchmarks.items():
+                for bm in bms:
+                    run_one_benchmark_with_hfacs(invocations, bm, suites[suite_name], hfacs,
+                                                 configs, Path(runbms_dir), log_dir)
+                    print()
+
+
         def run_N_ns(N, ns):
-            hfacs = get_hfacs(heap_range, spread_factor, N, ns)
-            run_hfacs(hfacs)
+            if not invert_hfacs:
+                hfacs = get_hfacs(heap_range, spread_factor, N, ns)
+                run_hfacs(hfacs)
+            else:
+                hfacs = get_hfacs(heap_range, spread_factor, N, ns)
+                run_benchmarks_with_inverted_hfacs(hfacs)
 
         if slice:
-            run_hfacs(slice)
+            if not invert_hfacs:
+                run_hfacs(slice)
+            else:
+                run_benchmarks_with_inverted_hfacs(slice)
             return True
 
         if N is None:
@@ -480,7 +525,11 @@ def run(args):
             return True
 
         if len(ns) == 0:
-            fillin(run_N_ns, round(math.log2(N)))
+            if not invert_hfacs:
+                fillin(run_N_ns, round(math.log2(N)))
+            else:
+                run_N_ns(N, range(0, N+1))
+
         else:
             run_N_ns(N, ns)
 
