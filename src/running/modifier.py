@@ -163,3 +163,20 @@ class Companion(Modifier):
 
     def __str__(self) -> str:
         return "{} Companion {}".format(super().__str__(), self.val)
+
+
+@register(Modifier)
+class SimpleFile(Modifier):
+    def __init__(self, value_opts=None, **kwargs):
+        super().__init__(value_opts, **kwargs)
+        if "path" not in self._kwargs:
+            raise ValueError(
+                "Please specify the path of the file for modifier {}".format(self.name))
+        if "val" not in self._kwargs:
+            raise ValueError(
+                "Please specify the contents of the file for modifier {}".format(self.name))
+        self.path = self._kwargs["path"]
+        self.val = self._kwargs["val"]
+
+    def __str__(self) -> str:
+        return "{} SimpleFile {}".format(super().__str__(), self.path, self.val)

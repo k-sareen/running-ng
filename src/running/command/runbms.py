@@ -182,6 +182,7 @@ def get_log_epilogue(runtime: Runtime, bm: Benchmark) -> str:
         output += system("adb logcat -d '*:I'", use_wrapper=False)
     if isinstance(runtime, AndroidZygote):
         system("adb shell rm -rf /data/local/heap_sizes.json", use_wrapper=False)
+        system("adb shell rm -rf /data/local/mmtk_stress_factor", use_wrapper=False)
         # Sleep for 1s to ensure that device state is consistent
         time.sleep(1)
     return output
@@ -306,7 +307,7 @@ def run_one_benchmark(
                 # consistent results later on. Run this without any heap size
                 # so that it will guaranteed work
                 if isinstance(runtime, AndroidZygote) and not ran_mock:
-                    mod_b = bm.attach_modifiers(mods)
+                    mod_b = bm.attach_modifiers(mods, init_run=True)
                     mod_b.run(runtime, cwd=runbms_dir)
                     ran_mock = True
 

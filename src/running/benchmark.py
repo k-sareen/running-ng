@@ -12,7 +12,9 @@ from copy import deepcopy
 from running import suite
 import os
 from enum import Enum
+import tempfile
 import pty
+import time
 
 COMPANION_WAIT_START = 2.0
 
@@ -217,7 +219,7 @@ class JavaBenchmark(Benchmark):
     def __str__(self) -> str:
         return self.to_string(DummyRuntime("java"))
 
-    def attach_modifiers(self, modifiers: List[Modifier]) -> 'JavaBenchmark':
+    def attach_modifiers(self, modifiers: List[Modifier], init_run=False) -> 'JavaBenchmark':
         jb = super().attach_modifiers(modifiers)
         for m in modifiers:
             if self.suite_name in m.excludes:
@@ -237,6 +239,13 @@ class JavaBenchmark(Benchmark):
                     for v in m.val:
                         jb.program_args.insert(index, v)
                         index += 1
+            elif isinstance(m, SimpleFile):
+                if not init_run:
+                    tfile = tempfile.NamedTemporaryFile(mode="w+")
+                    tfile.write(m.val)
+                    tfile.flush()
+                    system("adb push {} {}".format(tfile.name, m.path), use_wrapper=False)
+                    time.sleep(1)
             elif isinstance(m, JVMClasspathAppend):
                 jb.cp.extend(m.val)
             elif type(m) == JVMClasspathPrepend:
