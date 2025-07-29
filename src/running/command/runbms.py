@@ -447,13 +447,13 @@ def run_one_benchmark_with_hfacs(
 def ensure_remote_dir(log_dir):
     if not is_dry_run() and remote_host is not None:
         log_dir = log_dir.resolve()
-        system("ssh {} mkdir -p {}".format(remote_host, log_dir))
+        system("ssh {} mkdir -p {}".format(remote_host, log_dir), use_wrapper=False)
 
 
 def rsync(log_dir):
     if not is_dry_run() and remote_host is not None:
         log_dir = log_dir.resolve()
-        system("rsync -ae ssh {}/ {}:{}".format(log_dir, remote_host, log_dir))
+        system("rsync -ae ssh {}/ {}:{}".format(log_dir, remote_host, log_dir), use_wrapper=False)
 
 
 def run(args):
