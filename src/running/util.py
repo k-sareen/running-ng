@@ -121,7 +121,7 @@ def smart_quote(_s: Any) -> str:
 
 
 def get_logged_in_users() -> Set[str]:
-    output = system("who")
+    output = system("who", use_wrapper=False)
     return set([l.split()[0] for l in output.splitlines()])
 
 
