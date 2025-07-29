@@ -3,7 +3,7 @@ This subcommand runs benchmarks with different configs, possibly with varying he
 
 ## Usage
 ```console
-runbms [-h|--help] [-i|--invocations INVOCATIONS] [-s|--slice SLICE] [-p|--id-prefix ID_PREFIX] [-m|--minheap-multiplier MINHEAP_MULTIPLIER] [--skip-oom SKIP_OOM] [--skip-timeout SKIP_TIMEOUT] [--resume RESUME] [--workdir WORKDIR] LOG_DIR CONFIG [N] [n [n ...]]
+runbms [-h|--help] [-i|--invocations INVOCATIONS] [-s|--slice SLICE] [-p|--id-prefix ID_PREFIX] [-m|--minheap-multiplier MINHEAP_MULTIPLIER] [--skip-oom SKIP_OOM] [--skip-timeout SKIP_TIMEOUT] [--resume RESUME] [--workdir WORKDIR] [--skip-log-compression] LOG_DIR CONFIG [N] [n ...]
 ```
 
 `-h`: print help message.
@@ -32,6 +32,8 @@ Override `minheap_multiplier` in the config file.
 
 `--workdir` (preview ⚠️): use the specified directory as the working directory for benchmarks.
 If not specified, a temporary directory will be created under an OS-dependent location with a `runbms-` prefix.
+
+`--skip-log-compression`: skip compressing log file as gzip.
 
 `LOG_DIR`: where to store the results.
 This is required.
@@ -84,10 +86,11 @@ plugins:
 `request`: please follow the [Zulip API documentation](https://zulip.com/api/send-message).
 Note that you don't need to put in `content` here.
 Please contact the administrators of your organization for your user ID.
+If you use a bot user and want to post to a channel, please [subscribe the bot user to the channel so that messages can be edited](https://github.com/zulip/zulip/issues/13658#issuecomment-573959765).
 
 `config_file`: an optional string to the path of config file.
 If not specified, the default is `~/.zuliprc`.
-Please make sure that this file can only be accessed by you (e.g., `chmod 600 ~/.zulip`).
+Please make sure that this file can only be accessed by you (e.g., `chmod 600 ~/.zuliprc`).
 If you are a moma user, please create this file on `squirrel`, and it will then be synced to other machines.
 Please follow the Zulip documentation for the [syntax](https://zulip.com/api/configuring-python-bindings) of the config file and for [obtaining an API key](https://zulip.com/api/api-keys).
 If you can't create a new bot, please contact the administrators of your organization.

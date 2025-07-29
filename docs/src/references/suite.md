@@ -21,13 +21,14 @@ A possible use-case could use wrapper shell scripts around the benchmark to
 output timing and other information in a tab-separated table.
 
 ## `DaCapo`
-[DaCapo benchmark suite](http://dacapo-bench.org/).
+[DaCapo benchmark suite](https://www.dacapobench.org/).
 ### Keys
 `release`: one of the possible values `["2006", "9.12", "evaluation"]`.
 The value is required.
 
 `path`: path to the DaCapo `jar`.
 The value is required.
+Environment variables will be expanded.
 
 `minheap`: a string that selects one of the `minheap_values` sets to use.
 
@@ -67,9 +68,10 @@ Second, a dictionary of strings with shell-like syntax to specify possibly diffe
 If a benchmark doesn't have a wrapper in the dictionary, it is treated as `null`.
 
 `companion` (preview ⚠️): the syntax is similar to `wrapper`.
-The companion program will start before the main program and run in a separate terminal.
+The companion program will start before the main program.
 The main program will start two seconds after the companion program to make sure the companion is fully initialized.
-Once the main program finishes, `^C` is sent to the terminal to stop the companion program.
+Once the main program finishes, we will wait for the companion program to finish.
+Therefore, companion programs should have appropriate timeouts or detect when main program finishes.
 Here is an example of using `companion` to launch `bpftrace` in the background to count the system calls.
 ```yaml
 includes:
@@ -77,7 +79,7 @@ includes:
 
 overrides:
   "suites.dacapo2006.timing_iteration": 1
-  "suites.dacapo2006.companion": "sudo bpftrace -e 'tracepoint:raw_syscalls:sys_enter { @syscall[args->id] = count(); @process[comm] = count();} END { printf(\"Goodbye world!\\n\"); }'"
+  "suites.dacapo2006.companion": "sudo bpftrace -e 'tracepoint:raw_syscalls:sys_enter { @syscall[args->id] = count(); @process[comm] = count();} interval:s:10 { printf(\"Goodbye world!\\n\"); exit(); }'"
   "invocations": 1
 
 benchmarks:
@@ -88,13 +90,10 @@ configs:
   - "temurin-17"
 ```
 In the log file, the output from the main program and the output from the companion program is separated by `*****`.
-A companion program should shutdown cleanly upon receiving `SIGINT` (Ctrl-C).
-In the case of `bpftrace`, one should avoid using `exit()`.
-Otherwise, a `SIGINT` during `exit()` will stop printing the rest of the maps, resulting in data loss.
 
 `size`: specifying the size of input data.
 Note that the names of the sizes are subject to change depending on the DaCapo releases.
-The default value is `default`.
+The default value is `null`, which means DaCapo will use the default size unless you override that for individual benchmarks.
 
 ### Benchmark Specification
 Some of the suite-wide keys can be overridden in a per-benchmark-basis.
@@ -122,6 +121,7 @@ The value is required.
 `path`: path to the `jar`.
 The value is required.
 Note that the property file should reside in `path/../config/specjbb2015.props` per the standard folder structure of the ISO image provided by SPEC.
+Environment variables will be expanded.
 
 ### Benchmark Specification
 Only strings are allowed, which should correspond to the the mode of the SPECjbb2015 controller.
@@ -156,6 +156,7 @@ The value is required.
 
 `path`: path to the SPECjvm98 folder, where you can find `SpecApplication.class`.
 The value is required.
+Environment variables will be expanded.
 
 `timing_iteration`: specifying the timing iteration.
 It can only be a number, which is passed to SpecApplication as `-i`.
@@ -177,6 +178,7 @@ The following are the benchmarks:
 ### Keys
 `path`: path to the Octane benchmark folder.
 The value is required.
+Environment variables will be expanded.
 
 `wrapper`: path to the Octane wrapper written by Wenyu Zhao.
 The value is required.
@@ -199,4 +201,33 @@ minheap_values:
       box2d: 5
       codeload: 159
       crypto: 3
+```
+
+## `JuliaGCBenchmarks` (preview ⚠️)
+
+GC benchmarks for Julia: https://github.com/JuliaCI/GCBenchmarks
+
+### Keys
+`path`: path to the GCBenchmarks folder.
+The value is required.
+Environment variables will be expanded.
+
+`minheap`:  a string that selects one of the `minheap_values` sets to use.
+
+`minheap_values`: a dictionary containing multiple named sets of minimal heap sizes that is enough for a benchmark from the suite to run without triggering `Out of Memory!`.
+An example looks like this:
+```yaml
+    minheap_values:
+      julia-mmtk-immix:
+        multithreaded/binary_tree/tree_immutable: 225
+        multithreaded/binary_tree/tree_mutable: 384
+        multithreaded/bigarrays/objarray: 9225
+        serial/TimeZones: 5960
+        serial/append: 1563
+        serial/bigint/pollard: 198
+        serial/linked/list: 4325
+        serial/linked/tree: 216
+        serial/strings/strings: 2510
+        slow/bigint/pidigits: 198
+        slow/rb_tree/rb_tree: 8640
 ```

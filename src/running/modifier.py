@@ -1,6 +1,7 @@
 from typing import Any, Dict, List, TYPE_CHECKING
 from running.util import register, smart_quote, split_quoted, parse_modifier_strs
 import copy
+
 if TYPE_CHECKING:
     from running.config import Configuration
 
@@ -14,10 +15,14 @@ class Modifier(object):
         self.value_opts = value_opts
         if "-" in self.name:
             raise ValueError(
-                "Modifier {} has - in its name. - is reserved for value options.".format(self.name))
+                "Modifier {} has - in its name. - is reserved for value options.".format(
+                    self.name
+                )
+            )
         self.__original_kwargs = kwargs
         self._kwargs = copy.deepcopy(kwargs)
         self.excludes = kwargs.get("excludes", {})
+        self.includes = kwargs.get("includes", {})
         if self.value_opts:  # Neither None nor empty
             # Expand value opts
             for k, v in kwargs.items():
@@ -35,6 +40,20 @@ class Modifier(object):
     def apply_value_opts(self, value_opts):
         return type(self)(value_opts=value_opts, **self.__original_kwargs)
 
+    def should_attach(self, suite_name: str, bm_name: str):
+        # We only attach this modifier to the benchmark listed in the
+        # includes list
+        if self.includes:
+            if suite_name not in self.includes:
+                return False
+            if bm_name not in self.includes[suite_name]:
+                return False
+        # If a benchmark is in the excludes list, then we don't attach
+        # the modifier
+        if suite_name in self.excludes and bm_name in self.excludes[suite_name]:
+            return False
+        return True
+
     def __str__(self) -> str:
         return "Modifier {}".format(self.name)
 
@@ -45,7 +64,7 @@ class ModifierSet(Modifier):
         super().__init__(value_opts, **kwargs)
         self.val = self._kwargs["val"].split("|")
 
-    def flatten(self, configuration: 'Configuration') -> List[Modifier]:
+    def flatten(self, configuration: "Configuration") -> List[Modifier]:
         return parse_modifier_strs(configuration, self.val)
 
     def __str__(self) -> str:
@@ -104,15 +123,23 @@ class EnvVar(Modifier):
         super().__init__(value_opts, **kwargs)
         if "var" not in self._kwargs:
             raise ValueError(
-                "Please specify the name of the environment variable for modifier {}".format(self.name))
+                "Please specify the name of the environment variable for modifier {}".format(
+                    self.name
+                )
+            )
         if "val" not in self._kwargs:
             raise ValueError(
-                "Please specify the value for the environment variable for modifier {}".format(self.name))
+                "Please specify the value for the environment variable for modifier {}".format(
+                    self.name
+                )
+            )
         self.var = self._kwargs["var"]
         self.val = self._kwargs["val"]
 
     def __str__(self) -> str:
-        return "{} EnvVar {}={}".format(super().__str__(), self.var, smart_quote(self.val))
+        return "{} EnvVar {}={}".format(
+            super().__str__(), self.var, smart_quote(self.val)
+        )
 
 
 @register(Modifier)
@@ -163,6 +190,24 @@ class Companion(Modifier):
 
     def __str__(self) -> str:
         return "{} Companion {}".format(super().__str__(), self.val)
+
+
+@register(Modifier)
+class JuliaArg(Modifier):
+    def __init__(self, value_opts=None, **kwargs):
+        super().__init__(value_opts, **kwargs)
+        self.val = split_quoted(self._kwargs["val"])
+def __str__(self) -> str:
+        return "{} JuliaArg {}".format(super().__str__(), self.val)
+
+
+@register(Modifier)
+class NoImplicitHeapsizeModifier(Modifier):
+    def __init__(self, value_opts=None, **kwargs):
+        super().__init__(value_opts, **kwargs)
+
+    def __str__(self) -> str:
+        return "{} NoImplicitHeapsizeModifier".format(super().__str__())
 
 
 @register(Modifier)

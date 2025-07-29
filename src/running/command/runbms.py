@@ -1,10 +1,28 @@
 import logging
-from typing import DefaultDict, Dict, List, Any, Optional, Set, Tuple, BinaryIO, TYPE_CHECKING
+from typing import (
+    DefaultDict,
+    Dict,
+    List,
+    Any,
+    Optional,
+    Set,
+    Tuple,
+    BinaryIO,
+    TYPE_CHECKING,
+)
 from running.suite import BenchmarkSuite, is_dry_run
 from running.benchmark import Benchmark, SubprocessrExit
 from running.config import Configuration
 from pathlib import Path
-from running.util import parse_config_str, system, get_logged_in_users, get_wrapper, config_index_to_chr, config_str_encode
+from running.util import (
+    parse_config_str,
+    system,
+    get_logged_in_users,
+    get_wrapper,
+    config_index_to_chr,
+    config_str_encode,
+    dont_emit_heapsize_modifier,
+)
 import socket
 from datetime import datetime
 from running.runtime import Runtime, ARTDevice, AndroidZygote
@@ -16,6 +34,8 @@ import os
 from running.command.fillin import fillin
 import math
 import yaml
+from collections import defaultdict
+
 if TYPE_CHECKING:
     from running.plugin.runbms import RunbmsPlugin
 from running.__version__ import __VERSION__
@@ -26,6 +46,7 @@ remote_host: Optional[str]
 skip_oom: Optional[int]
 skip_timeout: Optional[int]
 invert_hfacs: Optional[bool]
+skip_log_compression: bool = False
 plugins: Dict[str, Any]
 resume: Optional[str]
 
@@ -35,8 +56,8 @@ def setup_parser(subparsers):
     f.set_defaults(which="runbms")
     f.add_argument("LOG_DIR", type=Path)
     f.add_argument("CONFIG", type=Path)
-    f.add_argument("N", type=int, nargs='?')
-    f.add_argument("n", type=int, nargs='*')
+    f.add_argument("N", type=int, nargs="?")
+    f.add_argument("n", type=int, nargs="*")
     f.add_argument("-i", "--invocations", type=int)
     f.add_argument("-s", "--slice", type=str)
     f.add_argument("-p", "--id-prefix")
@@ -46,6 +67,9 @@ def setup_parser(subparsers):
     f.add_argument("--resume", type=str)
     f.add_argument("--workdir", type=Path)
     f.add_argument("--invert-hfacs", action="store_true")
+    f.add_argument(
+        "--skip-log-compression", action="store_true", help="Skip compressing log files"
+    )
 
 
 def getid() -> str:
@@ -96,28 +120,33 @@ def spread(spread_factor: int, N: int, n: int) -> float:
     n: int
         Nominator
     """
-    sum_1_n_minus_1 = (n*n - n) / 2
+    sum_1_n_minus_1 = (n * n - n) / 2
     return n + spread_factor / (N - 1) * sum_1_n_minus_1
 
 
 def hfac_str(hfac: float) -> str:
-    return str(int(hfac*1000))
+    return str(int(hfac * 1000))
 
 
 def get_heapsize(hfac: float, minheap: int) -> int:
     return round(minheap * hfac * minheap_multiplier)
 
 
-def get_hfacs(heap_range: int, spread_factor: int, N: int, ns: List[int]) -> List[float]:
+def get_hfacs(
+    heap_range: int, spread_factor: int, N: int, ns: List[int]
+) -> List[float]:
     start = 1.0
     end = float(heap_range)
-    divisor = spread(spread_factor, N, N)/(end-start)
-    return [spread(spread_factor, N, n)/divisor + start for n in ns]
+    divisor = spread(spread_factor, N, N) / (end - start)
+    return [spread(spread_factor, N, n) / divisor + start for n in ns]
 
 
-def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, suite: BenchmarkSuite, size: Optional[int], fd: Optional[BinaryIO]) -> Tuple[bytes, SubprocessrExit]:
+def run_benchmark_with_config(
+    c: str, b: Benchmark, runbms_dir: Path, suite: BenchmarkSuite, size: Optional[int], fd: Optional[BinaryIO]
+) -> Tuple[bytes, SubprocessrExit]:
     runtime, mods = parse_config_str(configuration, c)
     mod_b = b.attach_modifiers(mods)
+    mod_b = mod_b.attach_modifiers(b.get_runtime_specific_modifiers(runtime))
     if size is not None:
         if isinstance(runtime, AndroidZygote):
             heap_size_spoofing = False
@@ -139,7 +168,7 @@ def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, suite: Ben
             system("adb push {} /data/local/heap_sizes.json".format(json_tfile.name), use_wrapper=False)
             time.sleep(1)
         else:
-            mod_b = mod_b.attach_modifiers([runtime.get_heapsize_modifier(size)])
+            mod_b = mod_b.attach_modifiers(runtime.get_heapsize_modifier(size))
     if fd:
         prologue = get_log_prologue(runtime, mod_b)
         fd.write(prologue.encode("ascii", "ignore"))
@@ -155,9 +184,13 @@ def run_benchmark_with_config(c: str, b: Benchmark, runbms_dir: Path, suite: Ben
     return output, exit_status
 
 
-def get_filename_no_ext(bm: Benchmark, hfac: Optional[float], size: Optional[int], config: str) -> str:
+def get_filename_no_ext(
+    bm: Benchmark, hfac: Optional[float], size: Optional[int], config: str
+) -> str:
+    # If we have / in benchmark names, replace with -.
+    safe_bm_name = bm.name.replace("/", "-")
     return "{}.{}.{}.{}.{}".format(
-        bm.name,
+        safe_bm_name,
         # plotty uses "^(\w+)\.(\d+)\.(\d+)\.([a-zA-Z0-9_\-\.\:\,]+)\.log\.gz$"
         # to match filenames
         hfac_str(hfac) if hfac is not None else "0",
@@ -167,11 +200,15 @@ def get_filename_no_ext(bm: Benchmark, hfac: Optional[float], size: Optional[int
     )
 
 
-def get_filename(bm: Benchmark, hfac: Optional[float], size: Optional[int], config: str) -> str:
+def get_filename(
+    bm: Benchmark, hfac: Optional[float], size: Optional[int], config: str
+) -> str:
     return get_filename_no_ext(bm, hfac, size, config) + ".log"
 
 
-def get_filename_completed(bm: Benchmark, hfac: Optional[float], size: Optional[int], config: str) -> str:
+def get_filename_completed(
+    bm: Benchmark, hfac: Optional[float], size: Optional[int], config: str
+) -> str:
     return "{}.gz".format(get_filename(bm, hfac, size, config))
 
 
@@ -220,20 +257,33 @@ def get_log_prologue(runtime: Runtime, bm: Benchmark) -> str:
     output += "number of cores: "
     cores = system("cat /proc/cpuinfo | grep processor | wc -l")
     output += cores
-    for i in range(0, int(cores)):
-        output += "Frequency of cpu {}: ".format(i)
-        output += hz_to_ghz(
-            system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_cur_freq".format(i)))
-        output += "\n"
-        output += "Governor of cpu {}: ".format(i)
-        output += system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_governor".format(i))
-        output += "Scaling_min_freq of cpu {}: ".format(i)
-        output += hz_to_ghz(
-            system("cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_min_freq".format(i)))
-        output += "\n"
+    has_cpufreq = Path("/sys/devices/system/cpu/cpu0/cpufreq").is_dir()
+    if has_cpufreq or (isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote)):
+        for i in range(0, int(cores)):
+            output += "Frequency of cpu {}: ".format(i)
+            output += hz_to_ghz(
+                system(
+                    "cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_cur_freq".format(
+                        i
+                    )
+                )
+            )
+            output += "\n"
+            output += "Governor of cpu {}: ".format(i)
+            output += system(
+                "cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_governor".format(i)
+            )
+            output += "Scaling_min_freq of cpu {}: ".format(i)
+            output += hz_to_ghz(
+                system(
+                    "cat /sys/devices/system/cpu/cpu{}/cpufreq/scaling_min_freq".format(
+                        i
+                    )
+                )
+            )
+            output += "\n"
     if isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote):
         output += system("adb shell dumpsys thermalservice", use_wrapper=False)
-    if isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote):
         output += system("adb logcat -c", use_wrapper=False)
     if isinstance(runtime, AndroidZygote):
         # Wake up device by pressing home before running test
@@ -248,7 +298,7 @@ def run_one_benchmark(
     hfac: Optional[float],
     configs: List[str],
     runbms_dir: Path,
-    log_dir: Path
+    log_dir: Path,
 ):
     p: "RunbmsPlugin"
     bm_name = bm.name
@@ -263,16 +313,17 @@ def run_one_benchmark(
     for p in plugins.values():
         p.start_benchmark(hfac, size, bm)
     oomed_count: DefaultDict[str, int]
-    oomed_count = DefaultDict(int)
+    oomed_count = defaultdict(int)
     timeout_count: DefaultDict[str, int]
-    timeout_count = DefaultDict(int)
+    timeout_count = defaultdict(int)
     logged_in_users: Set[str]
     ran_mock = False
     if get_wrapper() is None:
         logged_in_users = get_logged_in_users()
         if len(logged_in_users) > 1:
-            logging.warning("More than one user logged in: {}".format(
-                " ".join(logged_in_users)))
+            logging.warning(
+                "More than one user logged in: {}".format(" ".join(logged_in_users))
+            )
     ever_ran = [False] * len(configs)
     for i in range(0, invocations):
         for p in plugins.values():
@@ -289,8 +340,7 @@ def run_one_benchmark(
                 print(".", end="", flush=True)
                 continue
             if resume:
-                log_filename_completed = get_filename_completed(
-                    bm, hfac, size, c)
+                log_filename_completed = get_filename_completed(bm, hfac, size, c)
                 if (log_dir / log_filename_completed).exists():
                     print(config_index_to_chr(j), end="", flush=True)
                     continue
@@ -343,11 +393,11 @@ def run_one_benchmark(
         p.end_benchmark(hfac, size, bm)
     for j, c in enumerate(configs):
         log_filename = get_filename(bm, hfac, size, c)
+        # Check that this is not a dry-run and we have actually executed this
+        # config for a particular benchmark/hfac (method parameters)
         if not is_dry_run() and ever_ran[j]:
-            subprocess.check_call([
-                "gzip",
-                log_dir / log_filename
-            ])
+            if not skip_log_compression:
+                subprocess.check_call(["gzip", log_dir / log_filename])
     print()
 
 
@@ -358,7 +408,7 @@ def run_one_hfac(
     benchmarks: Dict[str, List[Benchmark]],
     configs: List[str],
     runbms_dir: Path,
-    log_dir: Path
+    log_dir: Path,
 ):
     p: "RunbmsPlugin"
     for p in plugins.values():
@@ -366,8 +416,9 @@ def run_one_hfac(
     for suite_name, bms in benchmarks.items():
         suite = suites[suite_name]
         for bm in bms:
-            run_one_benchmark(invocations, suite, bm, hfac,
-                              configs, runbms_dir, log_dir)
+            run_one_benchmark(
+                invocations, suite, bm, hfac, configs, runbms_dir, log_dir
+            )
             rsync(log_dir)
     for p in plugins.values():
         p.end_hfac(hfac)
@@ -439,10 +490,11 @@ def run(args):
         skip_timeout = args.get("skip_timeout")
         global invert_hfacs
         invert_hfacs = args.get("invert_hfacs")
+        global skip_log_compression
+        skip_log_compression = args.get("skip_log_compression")
         # Load from configuration file
         global configuration
-        configuration = Configuration.from_file(
-            Path(os.getcwd()), args.get("CONFIG"))
+        configuration = Configuration.from_file(Path(os.getcwd()), args.get("CONFIG"))
         # Save metadata
         if not is_dry_run():
             with (log_dir / "runbms.yml").open("w") as fd:
@@ -474,25 +526,66 @@ def run(args):
             plugins = {}
         else:
             from running.plugin.runbms import RunbmsPlugin
+
             if type(plugins) is not dict:
                 raise TypeError("plugins must be a dictionary")
-            plugins = {k: RunbmsPlugin.from_config(
-                k, v) for k, v in plugins.items()}
+            plugins = {k: RunbmsPlugin.from_config(k, v) for k, v in plugins.items()}
             for p in plugins.values():
                 p.set_run_id(run_id)
                 p.set_runbms_dir(runbms_dir)
                 p.set_log_dir(log_dir)
 
+        configs_no_heapsize = [
+            c for c in configs if dont_emit_heapsize_modifier(configuration, c)
+        ]
+        configs_with_heapsize = [
+            c for c in configs if not dont_emit_heapsize_modifier(configuration, c)
+        ]
+
+        # Simple case
+        if not slice and N is None:
+            # run all configs without specifying heap size
+            run_one_hfac(
+                invocations,
+                None,  # not specifying heap size
+                suites,
+                benchmarks,
+                configs,
+                Path(runbms_dir),
+                log_dir,
+            )
+            # early return
+            return True
+
+        # In all other cases, we will first run configs that don't want
+        # implicit heapsize modifiers
+        if configs_no_heapsize:
+            logging.info("Running all configs with NoImplicitHeapSizeModifier set")
+            run_one_hfac(
+                invocations,
+                None,  # not specifying heap size
+                suites,
+                benchmarks,
+                configs_no_heapsize,
+                Path(runbms_dir),
+                log_dir,
+            )
+
+        # Helper function for running benchmarks using multiple heap factors
         def run_hfacs(hfacs):
-            logging.info("hfacs: {}".format(
-                ", ".join([
-                    hfac_str(hfac)
-                    for hfac in hfacs
-                ])
-            ))
+            logging.info(
+                "hfacs: {}".format(", ".join([hfac_str(hfac) for hfac in hfacs]))
+            )
             for hfac in hfacs:
-                run_one_hfac(invocations, hfac, suites, benchmarks,
-                             configs, Path(runbms_dir), log_dir)
+                run_one_hfac(
+                    invocations,
+                    hfac,
+                    suites,
+                    benchmarks,
+                    configs_with_heapsize,
+                    Path(runbms_dir),
+                    log_dir,
+                )
                 print()
 
         def run_benchmarks_with_inverted_hfacs(hfacs):
@@ -509,6 +602,7 @@ def run(args):
                     print()
 
 
+        # Helper function for using the heap factor spreading algorithm
         def run_N_ns(N, ns):
             if not invert_hfacs:
                 hfacs = get_hfacs(heap_range, spread_factor, N, ns)
@@ -518,24 +612,25 @@ def run(args):
                 run_benchmarks_with_inverted_hfacs(hfacs)
 
         if slice:
+            if N is not None:
+                logging.warning(
+                    "You specified both N={} and -s {}, N is ignored.".format(
+                        N,
+                        ",".join([str(s) for s in slice]),
+                    )
+                )
             if not invert_hfacs:
                 run_hfacs(slice)
             else:
                 run_benchmarks_with_inverted_hfacs(slice)
-            return True
-
-        if N is None:
-            run_one_hfac(invocations, None, suites, benchmarks,
-                         configs, Path(runbms_dir), log_dir)
-            return True
-
-        if len(ns) == 0:
-            if not invert_hfacs:
-                fillin(run_N_ns, round(math.log2(N)))
-            else:
-                run_N_ns(N, range(0, N+1))
-
         else:
-            run_N_ns(N, ns)
+            assert N is not None
+            if len(ns) == 0:
+                if not invert_hfacs:
+                    fillin(run_N_ns, round(math.log2(N)))
+                else:
+                    run_N_ns(N, range(0, N+1))
+            else:
+                run_N_ns(N, ns)
 
         return True

@@ -16,14 +16,14 @@ MODULES = [fillin, runbms, minheap, log_preprocessor]
 
 def setup_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-v", "--verbose", action="store_true",
-                        help="change logging level to DEBUG")
-    parser.add_argument("--version", action="version",
-                        version="running {}".format(__VERSION__))
-    parser.add_argument("-d", "--dry-run", action="store_true",
-                        help="dry run")
-    parser.add_argument("-w", "--wrapper",
-                        help="wrapper to run all commands with")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="change logging level to DEBUG"
+    )
+    parser.add_argument(
+        "--version", action="version", version="running {}".format(__VERSION__)
+    )
+    parser.add_argument("-d", "--dry-run", action="store_true", help="dry run")
+    parser.add_argument("-w", "--wrapper", help="wrapper to run all commands with")
     subparsers = parser.add_subparsers()
     for m in MODULES:
         m.setup_parser(subparsers)
@@ -41,7 +41,8 @@ def main():
         log_level = logging.INFO
     logging.basicConfig(
         format="[%(levelname)s] %(asctime)s %(filename)s:%(lineno)d %(message)s",
-        level=log_level)
+        level=log_level,
+    )
 
     if args.get("dry_run") == True:
         set_dry_run(True)

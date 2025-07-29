@@ -12,6 +12,102 @@
 
 ### Security
 
+## [`v0.4.7` (2024-08-30)](https://github.com/anupli/running-ng/releases/tag/v0.4.7)
+### Fixed
+#### Commands
+- `runbms`: correctly apply a default minheap value for a benchmark without a defined minheap value in the config file.
+
+## [`v0.4.6` (2024-05-23)](https://github.com/anupli/running-ng/releases/tag/v0.4.6)
+### Fixed
+#### Commands
+- `runbms`: remove superfluous log messages when no `configs` has a `NoImplicitHeapsizeModifier`.
+
+## [`v0.4.5` (2024-05-23)](https://github.com/anupli/running-ng/releases/tag/v0.4.5)
+### Added
+#### Modifiers
+- `NoImplicitHeapsizeModifier`
+
+## [`v0.4.4` (2023-11-23)](https://github.com/anupli/running-ng/releases/tag/v0.4.4)
+### Fixed
+#### Benchmark Suites
+- `DaCapo` correctly accepts the `23.11` `release` specified in `dacapo.yml`.
+
+## [`v0.4.3` (2023-11-20)](https://github.com/anupli/running-ng/releases/tag/v0.4.3)
+### Added
+#### Base Configurations
+- DaCapo 23.11-Chopin available as `dacapochopin`. Please use `dacapochopin_jdk9`, `dacapochopin_jdk11`, `dacapochopin_jdk17`, and `dacapochopin_jdk21` modifiers for JDK 9, 11, 17, and 21 respectively when you use this suite with these JDK versions.
+- Temurin 21
+
+### Changed
+#### Base Configurations
+- Environment variables are expanded when resolving paths of runtimes and benchmark suites.
+- `--add-exports java.base/jdk.internal.ref=ALL-UNNAMED` is no longer automatically added when running DaCapo benchmarks on >= JDK 9. This approach doesn't scale now we have more workarounds specific to different JDK versions. This is also too opaque and not clear how it's implemented. New modifiers are introduced to address this issue.
+
+#### Modifiers
+- `EnvVar` `val` is expanded using the outside environment prior to benchmark execution.
+
+### Deprecated
+- Deprecating Python 3.7 support for users. Python 3.7 was last released on June 6, 2023 (3.7.17), and no new release has been made since.
+
+### Removed
+- Dropping Python 3.7 support for developers (NOT users). pytest 7.4+ requires at least Python 3.8 (still supported by Ubuntu 20.04 LTS).
+
+## [`v0.4.2` (2023-09-10)](https://github.com/anupli/running-ng/releases/tag/v0.4.2)
+### Changed
+- All `Modifier` instances now supports `includes` for only attaching them to certain benchmarks
+
+### Fixed
+#### Runtimes
+- `D8` now detects new JavaScript OOM error pattern.
+
+### Security
+
+## [`v0.4.1` (2023-08-22)](https://github.com/anupli/running-ng/releases/tag/v0.4.1)
+### Fixed
+#### Commands
+- `runbms`: apply modifiers in the config file.
+- `minheap`: apply modifiers in the config file.
+
+## [`v0.4.0` (2023-08-17)](https://github.com/anupli/running-ng/releases/tag/v0.4.0)
+### Added
+#### Modifiers
+- `JuliaArg`
+
+#### Runtimes
+- `JuliaMMTK`
+- `JuliaStock`
+
+#### Benchmark Suites
+- `JuliaGCBenchmarks`
+
+#### Commands
+- `runbms` gains an extra argument, `--skip-log-compression`, to skip compressing log files with `gzip`.
+
+### Changed
+#### Base Configurations
+- `runbms`: don't sync to `squirrel.moma` for the default `runbms.yml`. **moma machine users should use `runbms-anu.yml` for the old behaviour.**
+
+### Fixed
+- Gracifully handle empty modifiers strings in configs, such as `openjdk7||foobar`.
+
+#### Benchmark Suites
+- DaCapo specific workarounds are now handled by the `DaCapo` class rather than the `JavaBenchmark` class to avoid confusions.
+
+## [`v0.3.9` (2023-08-02)](https://github.com/anupli/running-ng/releases/tag/v0.3.9)
+### Fixed
+#### Benchmark Suites
+- `DaCapo`: don't explicitly pass `-s default` to DaCapo unless the user requests so by setting the `size` key of `DaCapo` or overriding the sizes for individual benchmarks using the [benchmark specification syntax](./references/suite.md#benchmark-specification). This is so that users can override the size via `ProgramArg`.
+
+## [`v0.3.8` (2023-02-21)](https://github.com/anupli/running-ng/releases/tag/v0.3.8)
+### Changed
+#### Commands
+- `runbms`: companion programs are now expected to self-terminate.
+
+## [`v0.3.7` (2023-02-14)](https://github.com/anupli/running-ng/releases/tag/v0.3.7)
+### Fixed
+#### Commands
+- `runbms`: better heuristics to detect whether a host is in the moma subnet.
+
 ## [`v0.3.6` (2023-01-16)](https://github.com/anupli/running-ng/releases/tag/v0.3.6)
 ### Added
 #### Base Configurations
@@ -144,7 +240,7 @@
 - Whitespaces can be used in config strings for visual alignment. They are ignored when parsed.
 
 #### Commands
-- The `--slice` argument of `runbms` now accepts multiple comma-separated floating point numbers. 
+- The `--slice` argument of `runbms` now accepts multiple comma-separated floating point numbers.
 
 ### Removed
 #### Base Configurations
