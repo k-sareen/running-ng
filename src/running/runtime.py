@@ -259,7 +259,7 @@ class AndroidZygote(Runtime):
     def __str__(self):
         return "AndroidZygote {}".format(self.name)
 
-    def get_heapsize_modifier(self, size: int) -> Modifier:
+    def get_heapsize_modifiers(self, size: int) -> Modifier:
         # The heapsize modifier for AndroidZygote is special as it is in a file
         # at /data/local/heap_sizes.json. Given all the data required to set the
         # file, we set heap size inside runbms

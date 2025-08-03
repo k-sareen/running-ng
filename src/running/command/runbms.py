@@ -168,7 +168,7 @@ def run_benchmark_with_config(
             system("adb push {} /data/local/heap_sizes.json".format(json_tfile.name), use_wrapper=False)
             time.sleep(1)
         else:
-            mod_b = mod_b.attach_modifiers(runtime.get_heapsize_modifier(size))
+            mod_b = mod_b.attach_modifiers(runtime.get_heapsize_modifiers(size))
     if fd:
         prologue = get_log_prologue(runtime, mod_b)
         fd.write(prologue.encode("ascii", "ignore"))
