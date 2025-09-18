@@ -218,8 +218,9 @@ def get_log_epilogue(runtime: Runtime, bm: Benchmark) -> str:
         output += "ADB logcat:\n"
         output += system("adb logcat -d '*:I'", use_wrapper=False)
     if isinstance(runtime, AndroidZygote):
-        system("adb shell rm -rf /data/local/heap_sizes.json", use_wrapper=False)
-        system("adb shell rm -rf /data/local/mmtk_stress_factor", use_wrapper=False)
+        system("adb shell rm -f /data/local/heap_sizes.json", use_wrapper=False)
+        system("adb shell rm -f /data/local/mmtk_stress_factor", use_wrapper=False)
+        system("adb shell rm -f /data/local/mmtk_thread_affinity", use_wrapper=False)
         # Sleep for 1s to ensure that device state is consistent
         time.sleep(1)
     return output
