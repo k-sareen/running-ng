@@ -49,6 +49,7 @@ invert_hfacs: Optional[bool]
 skip_log_compression: bool = False
 plugins: Dict[str, Any]
 resume: Optional[str]
+reset_top_apps: bool = False
 
 
 def setup_parser(subparsers):
@@ -67,6 +68,7 @@ def setup_parser(subparsers):
     f.add_argument("--resume", type=str)
     f.add_argument("--workdir", type=Path)
     f.add_argument("--invert-hfacs", action="store_true")
+    f.add_argument("--reset-top-apps", action="store_true")
     f.add_argument(
         "--skip-log-compression", action="store_true", help="Skip compressing log files"
     )
@@ -287,6 +289,9 @@ def get_log_prologue(runtime: Runtime, bm: Benchmark) -> str:
         output += system("adb shell dumpsys thermalservice", use_wrapper=False)
         output += system("adb shell dumpsys deviceidle", use_wrapper=False)
         output += system("adb shell dumpsys nfc | grep mScreenState=", use_wrapper=False)
+        global reset_top_apps
+        if reset_top_apps:
+            output += system("adb shell /data/local/reset_top_apps.sh", use_wrapper=False)
         output += system("adb logcat -c", use_wrapper=False)
     if isinstance(runtime, AndroidZygote):
         # Wake up device by pressing home before running test
@@ -493,6 +498,8 @@ def run(args):
         skip_timeout = args.get("skip_timeout")
         global invert_hfacs
         invert_hfacs = args.get("invert_hfacs")
+        global reset_top_apps
+        reset_top_apps = args.get("reset_top_apps")
         global skip_log_compression
         skip_log_compression = args.get("skip_log_compression")
         # Load from configuration file
