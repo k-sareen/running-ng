@@ -285,6 +285,8 @@ def get_log_prologue(runtime: Runtime, bm: Benchmark) -> str:
             output += "\n"
     if isinstance(runtime, ARTDevice) or isinstance(runtime, AndroidZygote):
         output += system("adb shell dumpsys thermalservice", use_wrapper=False)
+        output += system("adb shell dumpsys deviceidle", use_wrapper=False)
+        output += system("adb shell dumpsys nfc | grep mScreenState=", use_wrapper=False)
         output += system("adb logcat -c", use_wrapper=False)
     if isinstance(runtime, AndroidZygote):
         # Wake up device by pressing home before running test
