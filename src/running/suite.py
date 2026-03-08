@@ -572,12 +572,15 @@ class AndroidApps(JavaBenchmarkSuite):
         "TwitchStreamTest": "tv.twitch.android.app",
         "TwitterScrollTest": "com.twitter.android",
         "WikipediaSearchAndScrollTest": "org.wikipedia",
+        "GCBench2xTest": "org.anu.gcbenchtest",
+        "GCBench20xTest": "org.anu.gcbenchtest",
     }
 
     REQUIRES_HEAP_SIZE_SPOOFING = [
         "BBCScrollAndClickTest",
         "InstagramScrollTest",
         "MapsRoutePreviewTest",
+        "TikTokScrollTest",
         "TwitterScrollTest",
     ]
 
