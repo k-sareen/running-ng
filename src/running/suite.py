@@ -327,7 +327,7 @@ class SPECjbb2015(JavaBenchmarkSuite):
         self.path = Path(os.path.expandvars(kwargs["path"])).resolve()
         self.propsfile = (self.path / ".." / "config" / "specjbb2015.props").resolve()
         if not self.path.exists():
-            logging.info("SPECjbb2015 jar {} not found".format(self.path))
+            logging.debug("SPECjbb2015 jar {} not found".format(self.path))
 
     def __str__(self) -> str:
         return "{} SPECjbb2015 {} {}".format(super().__str__(), self.release, self.path)
@@ -369,11 +369,11 @@ class Octane(BenchmarkSuite):
         self.path: Path
         self.path = Path(os.path.expandvars(kwargs["path"])).resolve()
         if not self.path.exists():
-            logging.info("Octane folder {} not found".format(self.path))
+            logging.debug("Octane folder {} not found".format(self.path))
         self.wrapper: Path
         self.wrapper = Path(kwargs["wrapper"]).resolve()
         if not self.wrapper.exists():
-            logging.info("Octane folder {} not found".format(self.wrapper))
+            logging.debug("Octane folder {} not found".format(self.wrapper))
         timing_iteration = parse_timing_iteration(
             kwargs.get("timing_iteration"), "Octane"
         )
@@ -452,9 +452,9 @@ class SPECjvm98(JavaBenchmarkSuite):
         self.path = Path(os.path.expandvars(kwargs["path"])).resolve()
 
         if not self.path.exists():
-            logging.info("SPECjvm98 {} not found".format(self.path))
+            logging.debug("SPECjvm98 {} not found".format(self.path))
         if not (self.path / "SpecApplication.class").exists():
-            logging.info(
+            logging.debug(
                 "SpecApplication.class not found under SPECjvm98 {}".format(self.path)
             )
         timing_iteration = parse_timing_iteration(

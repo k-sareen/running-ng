@@ -108,17 +108,17 @@ class Configuration(object):
     @staticmethod
     def from_file(in_folder: Path, p: str) -> "Configuration":
         expand_p = os.path.expandvars(p)
-        logging.info(
+        logging.debug(
             "Loading config {}, expanding to {}, relative to {}".format(
                 p, expand_p, in_folder
             )
         )
         path = Path(expand_p)
         if path.is_absolute():
-            logging.info("    is absolute")
+            logging.debug("    is absolute")
         else:
             path = in_folder.joinpath(p)
-            logging.info("    resolved to {}".format(path))
+            logging.debug("    resolved to {}".format(path))
         if not path.exists():
             raise ValueError("Configuration not found at path '{}'".format(path))
         if not path.is_file():
